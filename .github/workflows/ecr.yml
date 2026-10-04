@@ -17,6 +17,34 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Move assets from deep nest to root and clean
+        run: |
+          # 1. 起点となる最も深い共通ディレクトリを指定
+          # ※ ご自身の実環境のパス（例: ./src/views/ など）に書き換えてください
+          TARGET_DIR="./src/invidious/views"
+
+          if [ -d "$TARGET_DIR" ]; then
+            echo "Target directory found. Moving files..."
+            
+            # rsync を使って、TARGET_DIR の「中身」を構造を保ったまま現在のルート (.) にコピー
+            # --include で残したい拡張子やディレクトリ構造を指定し、それ以外を --exclude で除外します
+            rsync -av --prune-empty-dirs \
+              --include="*/" \
+              --include="*.ecr" --include="*.js" --include="*.css" \
+              --include="*.png" --include="*.webp" --include="*.jpg" --include="*.jpeg" --include="*.svg" --include="*.gif" \
+              --exclude="*" \
+              "$TARGET_DIR/" .
+          else
+            echo "Warning: Target directory $TARGET_DIR not found!"
+          fi
+
+          # 2. 元のバックエンドコードや古いフォルダ（ggg/ など）をすべて削除
+          # ルート (.) に新しく配置した必要な拡張子と .git 以外をクレンジング
+          find . -maxdepth 1 -not -name '.' -not -path './.git*' \
+            ! -name '*.ecr' ! -name '*.js' ! -name '*.css' \
+            ! -name '*.png' ! -name '*.webp' ! -name '*.jpg' ! -name '*.jpeg' ! -name '*.svg' ! -name '*.gif' \
+            -exec rm -rf {} +
+            
 
       - name: Delete .cr and other unnecessary backend files
         run: |
