@@ -1,49 +1,122 @@
-<!--% content_for "header" do %-->
-<title id="title"> - Invidious</title>
-<link rel="stylesheet" href="/css/search.css?v=<%= ASSET_COMMIT %>">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title id="page-title">Search - Invidious</title>
+    <!-- すべてのCSSパスの先頭にドットを追加 -->
+    <link rel="stylesheet" href="./css/pure-min.css">
+    <link rel="stylesheet" href="./css/default.css">
+    <link rel="stylesheet" href="./css/search.css">
+</head>
+<body>
 
+    <div id="search-filters-container"></div>
+    <hr/>
 
-<!-- Search redirection and filtering UI -->
-<%= Invidious::Frontend::SearchFilters.generate(query.filters, query.text, query.page, locale) %>
-<hr/>
-
-
-<%- if items.empty? -%>
-<div class="h-box no-results-error">
-    <div>
-        <%= translate(locale, "search_message_no_results") %><br/><br/>
-        <%= translate(locale, "search_message_change_filters_or_query") %><br/><br/>
-        <%= translate(locale, "search_message_use_another_instance", redirect_url) %>
+    <!-- エラー・結果なしメッセージ -->
+    <div class="h-box no-results-error" id="no-results-box" style="display: none;">
+        <div>
+            <span>結果が見つかりませんでした。</span><br/><br/>
+            <a href="#" id="redirect-url-link">別のインスタンスを試す</a>
+        </div>
     </div>
-</div>
-<%- else -%>
-    <%= rendered "components/items_paginated" %>
 
-<script>
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    // パラメータ 'q' （検索ワード）を取得。なければ空文字
-    const queryText = urlParams.get('q') || '';
-    // パラメータ 'page' （ページ数）を取得。なければデフォルトで 1
-    const currentPage = urlParams.get('page') || '1';
+    <!-- 動画リストを表示するコンテナ（PureCSSのグリッドシステムを利用） -->
+    <div class="pure-g" id="items-container" style="display: none;">
+        <!-- ここに JavaScript で動的に動画カードを生成します -->
+    </div>
 
-    let title = queryText;
-    let page = currentPage;
-    console.log(title + "," + page);
-    function updatePageTitle(queryText) {
-        const titleElement = document.getElementById("title");
-        let displayTitle = queryText;
+    <!-- =================================================== -->
+    <!-- JavaScript による API 連携と動的レンダリング -->
+    <!-- =================================================== -->
+    <script>
+        // 1. URLパラメータから検索ワードを取得
+        const urlParams = new URLSearchParams(window.location.search);
+        const queryText = urlParams.get('q') || '';
+        const currentPage = urlParams.get('page') || '1';
 
-        if (queryText.length > 5) {
-            // 30文字で切り取り、末尾の空白を削除（rstrip）して「…」を付与
-            displayTitle = queryText.substring(0, 5).trimEnd() + "…";
+        // 2. タイトルの動的変更
+        function updatePageTitle(q) {
+            const titleElement = document.getElementById("page-title");
+            if (!q) {
+                titleElement.textContent = "Search - Invidious";
+                return;
+            }
+            let displayTitle = q;
+            if (q.length > 30) {
+                displayTitle = q.substring(0, 30).replace(/\.+\$/, '').trimEnd() + "…";
+            }
+            titleElement.textContent = `${displayTitle} - Invidious`;
         }
-        
-        titleElement.textContent = `${displayTitle} - Invidious`;
-    }
-        // ページの読み込み時（または検索実行時）に実行
-    document.addEventListener("DOMContentLoaded", () => {
-        updatePageTitle(sampleQueryText);
-        // renderSearchResults(sampleItems, sampleRedirectUrl);
-    });
-</script>
+
+        // 3. 非同期（fetch）でデータを取得して画面を描画する
+        async function fetchAndRenderResults(q, page) {
+            const noResultsBox = document.getElementById("no-results-box");
+            const itemsContainer = document.getElementById("items-container");
+            const redirectLink = document.getElementById("redirect-url-link");
+
+            if (!q) {
+                noResultsBox.style.display = "block";
+                itemsContainer.style.display = "none";
+                return;
+            }
+
+            try {
+                // ./search-data?q= の形で相対パス指定
+                const apiUrl = `./search-data?q=${encodeURIComponent(q)}&page=${page}`;
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) throw new Error("ネットワークエラーが発生しました");
+                
+                const items = await response.json();
+
+                if (!items || items.length === 0) {
+                    noResultsBox.style.display = "block";
+                    itemsContainer.style.display = "none";
+                    redirectLink.href = `./search-data?q={encodeURIComponent(q)}`;
+                } else {
+                    noResultsBox.style.display = "none";
+                    itemsContainer.style.display = "flex";
+                    itemsContainer.innerHTML = ""; // 初期化
+
+                    // 取得した動画データをループで回してHTMLカードを生成
+                    items.forEach(video => {
+                        const videoCard = document.createElement("div");
+                        videoCard.className = "pure-u-1 pure-u-md-1-4 video-card"; 
+                        
+                        // aタグ、imgタグのリンクもすべて `./*` 形式に徹底統一
+                        videoCard.innerHTML = `
+                            <div class="thumbnail-container">
+                                <a href="./watch?v=${video.videoId}">
+                                    <img src="${video.videoThumbnails?.[0]?.url || './img/no_thumb.png'}" alt="${video.title}" style="width:100%;">
+                                </a>
+                            </div>
+                            <div class="video-info">
+                                <p class="video-title">
+                                    <a href="./watch?v=${video.videoId}">${video.title}</a>
+                                </p>
+                                <p class="video-author">
+                                    <a href="./channel/${video.authorId}">${video.author}</a>
+                                </p>
+                                <p class="video-meta">${video.publishedText || ''} • 視聴回数: ${video.viewCount || 0}</p>
+                            </div>
+                        `;
+                        itemsContainer.appendChild(videoCard);
+                    });
+                }
+            } catch (error) {
+                console.error("データの取得に失敗しました:", error);
+                noResultsBox.style.display = "block";
+                itemsContainer.style.display = "none";
+            }
+        }
+
+        // 4. 初期実行
+        document.addEventListener("DOMContentLoaded", () => {
+            updatePageTitle(queryText);
+            fetchAndRenderResults(queryText, currentPage);
+        });
+    </script>
+</body>
+</html>
