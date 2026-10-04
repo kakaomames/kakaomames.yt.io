@@ -21,7 +21,7 @@ jobs:
       - name: Delete .cr and other unnecessary backend files
         run: |
           # 1. 拡張子が .cr のファイルのみをリポジトリ全体から削除
-          find . -type f -name '*.cr' -delete
+          find . -type f -name '*.cr' -name '*.sh' -name '*.md' -name '*.yaml' -delete
 
           # (オプション) もしshard.ymlやshard.lockなど、Crystalの設定ファイルも消したい場合は以下を有効にしてください
           find . -type f \( -name 'shard.yml' -o -name 'shard.lock' \) -delete
