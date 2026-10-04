@@ -1,0 +1,46 @@
+name: Move ECR JS CSS to Top and Clean #s#ksheyh
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  move-and-clean:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Move .ecr, .js, .css files to root and delete others
+        run: |
+          # 1. サブディレクトリ内にある .ecr, .js, .css をすべてルートに移動
+          # -o (OR条件) を使って3つの拡張子をまとめ、カレントディレクトリ自身(.)は除外します
+          find . -mindepth 2 -type f \( -name '*.ecr' -o -name '*.js' -o -name '*.css' \) -exec mv -t . {} +
+
+          # 2. ルートにある対象ファイルと .git 関連以外をすべて削除
+          # ! -name で残したい拡張子をそれぞれ指定します
+          find . -type f ! -name '*.ecr' ! -name '*.js' ! -name '*.css' ! -path './.git*' -delete
+
+          # 3. 空になった不要なディレクトリをすべて削除
+          find . -type d -empty ! -path './.git*' -delete
+
+      - name: Commit and Push changes
+        run: |
+          git config --local user.email "github-actions[bot]@://github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add -A
+          
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: move all .ecr, .js, .css files to root and remove other files"
+            git push origin HEAD:${{ github.ref }}
+          else
+            echo "No changes detected."
+          fi
