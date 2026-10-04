@@ -1,0 +1,44 @@
+[
+  {
+    "videoId": "test1",
+    "title": "テスト1！",
+    "description": "これはテスト1！の動画詳細・説明文です。watch.htmlで表示される想定のテキストです。",
+    "publishedText": "1日前",
+    "published": 1775000000,
+    "lengthSeconds": 180,
+    "viewCount": 1520,
+    "likeCount": 128,
+    "author": "テストチャンネル",
+    "authorId": "UCtestChannel",
+    "authorUrl": "./channel/UCtestChannel",
+    "authorThumbnails": [
+      {
+        "url": "./img/channel_thumb.png"
+      }
+    ],
+    "videoUrl": "./video/18/test1.mp4",
+    "videoThumbnails": [
+      {
+        "quality": "high",
+        "url": "./img/test1_thumb.png"
+      }
+    ],
+    "comments": [
+      {
+        "author": "@testuse",
+        "content": "1コメ",
+        "publishedText": "1日前"
+      },
+      {
+        "author": "@yesy2",
+        "content": "1コメ取られた！",
+        "publishedText": "1日前"
+      },
+      {
+        "author": "@wdvjy",
+        "content": "面白い！",
+        "publishedText": "1日前"
+      }
+    ]
+  }
+]
